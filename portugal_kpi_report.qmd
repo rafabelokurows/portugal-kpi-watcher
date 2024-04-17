@@ -1,0 +1,784 @@
+---
+title: "Portugal Tourism and Economy Report"
+format: 
+    html:
+        toc: true
+        toc-expand: true
+        toc-title: "Jump To Section"
+        #number-sections: true
+        theme: 
+            light: flatly
+            dark: darkly
+        fontsize: 1em
+        grid:
+            body-width: 1000px
+        smooth-scroll: true
+execute: 
+  page-layout: full
+  
+---
+
+
+::: columns
+::: {.column width="65%"}
+
+This is a fully automated report of Portuguese Tourism and Economic indicators, developed to streamline and democratize  access to these important pieces of data on the Portuguese economy.
+
+The main focus of this particular report is:  
+
+- Tourism indicators:
+  - Nights stayed
+  - Guests
+  - € spent
+- Economic indicators:
+  - Consumer inflation
+  - Sentiment on the direction the country it's taking
+  - Retail Volume Index
+  - Unemployment rate
+
+Data comes from two main sources:  
+
+- INE (Portuguese Statistics Institute)  
+- Banco de Portugal  
+  
+In addition, individual references are always provided.
+
+
+
+:::
+
+::: {.column width="35%"}
+
+![](portugal.png){width=4in}
+
+
+:::
+:::
+
+```{python}
+#| label: run time
+#| echo: false
+from datetime import datetime
+run_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+```
+::: {.callout-note}
+
+## Last update 
+This report was generated on `{python} run_time`
+
+:::
+
+
+If you're interested in the summarized results, jump to: @sec-results
+
+
+```{python}
+#| label: setup and packages
+#| echo: false
+#| warning: false
+import pandas as pd
+import numpy as np
+import requests
+import urllib3
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+import matplotlib.pyplot as plt
+import locale
+from datetime import datetime, timedelta
+date= datetime.now().replace(day=1) - timedelta(days=1)
+fim_ultimo_mes = date.strftime("%Y-%m-%d")
+
+locale.setlocale(locale.LC_TIME, "pt_pt")
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+month_mapping = {
+    "Janeiro": "01",
+    "Fevereiro": "02",
+    "Março": "03",
+    "Abril": "04",
+    "Maio": "05",
+    "Junho": "06",
+    "Julho": "07",
+    "Agosto": "08",
+    "Setembro": "09",
+    "Outubro": "10",
+    "Novembro": "11",
+    "Dezembro": "12"
+}
+plt.style.use('seaborn-v0_8')
+bp_column_mapping = {
+    'Indicador de confiança dos consumidores-Mensal-sre (vcs)':'confianca_consumidor',
+    'Indicador de sentimento económico (1990-(A-1)=100)-Mensal (vcs)': 'sentimento_economico',
+    "Volume negócios a retalho - Alimentares estab especializados-M (vcsc)": "volume_retalho_alimentar",
+    "Taxa de desemprego 16 a 74 anos-Estimativas mensais (vcs)": "desemprego",
+    "IHPC (2015=100)-Bens alimentares-M": "ihpc_alimentos",
+    "IPC (2012=100)-bens alimentares": "ipc_alimentos",
+    "Exportações de viagens e turismo": "gastos_turistas"
+}
+```
+
+
+```{python}
+#| label: obtaining data from BP
+#| echo: false
+#| warning: false
+urlBP = f"https://bpstat.bportugal.pt/api/observations/excel/?series_ids=12099330,12099329,12559742,12099336,12099333,12559742,12559814,12559815,12559816,12559818,5739364,12559545,5721524,12559560,12559546,5739222,12559571,5736082,12559584,12516091&start_date=2017-01-31&end_date={fim_ultimo_mes}&language=PT"
+
+indicadoresBP = pd.read_excel(urlBP, parse_dates=True)
+column_names  = indicadoresBP.iloc[0, 1:20].tolist()
+column_names.insert(0, "date")
+indicadoresBP.columns = column_names
+indicadoresBP = indicadoresBP.iloc[3:,]\
+    .reset_index(drop=True)\
+    .iloc[::-1]\
+    .rename(columns=bp_column_mapping)\
+    .set_index('date')
+indicadoresBP = indicadoresBP[indicadoresBP.columns.intersection(bp_column_mapping.values())]
+indicadoresBP.reset_index().to_csv(".\data\indicadores_bp.csv",index=False)
+```
+
+
+
+```{python}
+#| label: functions
+#| echo: false
+def build_base_data(indicador,regiao = 'Continente'):
+    regiao_mapping = {
+    'Continente': '1',
+    'Norte': '11',
+    'Lisboa': '17',
+    'Algarve': '15'
+    }
+    meses = list(np.arange(1,13))
+    anos = list(np.arange(2017,2025))
+    data = {'mes': [], 'ano': []}
+
+    for ano in anos:
+        for mes in meses:
+            data['mes'].append(mes)
+            data['ano'].append(ano)
+    
+    df = pd.DataFrame(data)
+    df['indicador'] = indicador
+    geo = regiao_mapping.get(regiao, '1')
+    df['url'] = "https://www.ine.pt/ine/json_indicador/pindica.jsp?op=2&varcd=" + df['indicador']+ "&lang=PT&Dim1=S3A" + df['ano'].astype(str) + df['mes'].astype(str).str.zfill(2) + '&Dim2='+geo+'1&Dim3=T'
+
+    return df
+
+def fetch_data_and_flatten(url):
+    json_responses = []
+    flattened_data = []
+
+    try:
+        response = requests.get(url, verify=False)
+        response.raise_for_status()  # Raise an exception for bad status codes
+        json_data = response.json()
+        #json_responses.append(json_data)
+        
+        # Check if the response indicates failure
+        if 'Sucesso' in json_data[0] and 'Falso' in json_data[0]['Sucesso']:
+            print(f"API call failed for URL: {url}")
+            return None
+        
+        for key, value in json_data[0]['Dados'].items():
+            for item in value:
+                row = {'month_year': key}
+                row.update(item)
+                flattened_data.append(row)
+                
+        df_flattened = pd.DataFrame(flattened_data)
+        return df_flattened
+        
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching data: {e}")
+        return None
+
+def convert_to_datetime(date_str):
+    month_str, year_str = date_str.split(" de ")
+    month_number = month_mapping[month_str]
+    return datetime.strptime(month_number + "/01/" + year_str, "%m/%d/%Y")
+
+def plot_ine(dataframe, filename, title):
+    date_format = '%B %Y'  # Full month name followed by year
+
+    dataframe['month_year'] = dataframe['month_year'].str.replace(' de ', ' ')
+
+    fig = dataframe \
+        .assign(date=dataframe['month_year'].apply(lambda x: pd.to_datetime(x, format=date_format, errors='coerce')),
+                valor=dataframe['valor'].astype(int),
+                ma_3=dataframe["valor"].rolling(window=3).mean().shift(-1),
+                ma_6=dataframe["valor"].rolling(window=6).mean().shift(-2)) \
+        .drop(columns="geocod")\
+        .set_index('date') \
+        .plot(figsize=(9, 5), title=title) \
+        .get_figure()
+
+    plt.tight_layout()
+    plt.xlabel('')
+    plt.legend(['Monthly','Moving Average 3mo','Moving Average 6mo'])
+    filepath = f'.\plots\{filename}.png'
+    fig.savefig(filepath)
+    #print(f"Also saving plot at {filepath}")
+
+def plot_bp(indicator, filename, title, dataframe = indicadoresBP):
+    fig = dataframe[[indicator]]\
+        .plot(figsize=(9, 5),title= title)\
+        .get_figure()
+    
+    plt.tight_layout()
+    plt.legend().remove()
+    plt.xlabel('')
+    filepath = f'.\plots\{filename}.png'
+    fig.savefig(filepath)
+    #print(f"Also saving plot at {filepath}")
+
+def format_with_plus(val):
+    if val > 0:
+        return f'+{val}'
+    return val
+
+def format_with_percent(val):
+    if val > 0:
+        return f'+{val:.2f}%'
+    return f'{val:.2f}%'
+
+def tbl_indicators_bp(indicator,dataframe):
+    #indicator = "gastos_turistas"
+    teste=dataframe.reset_index('date')
+
+    teste = teste[['date',indicator]]\
+    .assign(month=pd.to_datetime(teste.date).dt.month_name(locale="pt_BR"),
+    year=pd.to_datetime(teste.date).dt.year)\
+    .dropna(subset=[indicator])\
+
+    tbl_last_6 = teste\
+    .assign(valor_AA =teste[indicator].astype(float).shift(12),
+            valor_MA = teste[indicator].astype(float).shift(1),
+            dif_AA = lambda x: round((x[indicator] - x['valor_AA']),2),
+            dif_AA_pct = lambda x: ((x[indicator] - x['valor_AA'])/abs(x['valor_AA']))*100,
+            dif_MA = lambda x: round((x[indicator] - x['valor_MA']),2),
+            dif_MA_pct = lambda x: ((x[indicator] - x['valor_MA'])/abs(x['valor_MA']))*100)\
+    .tail(6)
+
+    tbl_last6_format = tbl_last_6\
+    .assign(dif_AA = tbl_last_6['dif_AA'].apply(format_with_plus),
+    dif_MA = tbl_last_6['dif_MA'].apply(format_with_plus),
+    dif_AA_pct = tbl_last_6['dif_AA_pct'].apply(format_with_percent),
+    dif_MA_pct = tbl_last_6['dif_MA_pct'].apply(format_with_percent))
+
+    return tbl_last_6,tbl_last6_format
+
+def extract_difs(dataframe,label):
+   if label == "Unemployment Rate":
+    return dataframe\
+        .assign(indicator = label)\
+        .iloc[-1:,][['indicator','dif_MA','dif_AA']]\
+        .rename(columns={'dif_AA':'dif_AA_pct',
+        'dif_MA':'dif_MA_pct'})
+   else:
+     return dataframe\
+       .assign(indicator = label)\
+       .iloc[-1:,][['indicator','dif_MA_pct','dif_AA_pct']]
+
+    
+```
+
+These are the KPIs we're keeping track of:
+
+```{python}
+#| label: table_indicators
+#| echo: false
+#indicador = ["0009812","0009808","confianca_consumidor"]
+indicator = ["Dormidas (N.º) nos estabelecimentos de alojamento turístico", "Hóspedes (N.º) nos estabelecimentos de alojamento turístico","Gastos de turistas estrangeiros",'Indicador de confiança dos consumidores-Mensal-sre (vcs)', 'Indicador de sentimento económico (1990-(A-1)=100)-Mensal (vcs)',"Taxa de desemprego 16 a 74 anos-Estimativas mensais (vcs)","IPC (2012=100)-bens alimentares","IHPC (2015=100)-Bens alimentares-M", "Índice negócios Retalho - Alimentares estab especializados-M (vcsc)"]
+unit = ["Number of Stays",'Number of guests (persons)']  + ['€ spent','Balance of extreme responses','Current value vs. base value (1990)','Percentage','Current value vs. base value (2012)','Current value vs. base value (2015)','Current value vs. base value (2015)']
+#var = ["hospedes_continente","dormidas_continente"]
+source = ["INE","INE"] + ["Banco de Portugal"] * 7
+
+indicadores = pd.DataFrame({'indicator': indicator, 
+'unit': unit, 
+#'var': var, 
+'source': source})
+indicadores.style.hide(axis='index')
+
+```
+
+Caveats:  
+- Data availability may vary since there are different sources. INE's tourism data may be released at a different time than Banco de Portugal's, for instance.
+
+<br/>
+
+
+# Tourism
+
+
+```{python}
+#| label: obtaining_data_INE
+#| echo: false
+#| warning: false
+#| error: false
+indicador = ["0009812","0009808"]
+var = ["hospedes_continente","dormidas_continente"]
+indicadores_ine = pd.DataFrame({'indicador': indicador,  
+'var': var})
+
+for index, row in indicadores_ine.iterrows():
+     # Call build_base_data function for each row
+    df_aux = build_base_data(row['indicador'], regiao='Continente')
+    df_result = pd.concat([fetch_data_and_flatten(url) for url in df_aux.loc[:,'url']], ignore_index=True)
+    # Assign the resulting DataFrame to a variable named according to the 'var' column
+    globals()[row['var']] = df_result
+hospedes_continente.to_csv(".\data\hospedes.csv",index=False)
+dormidas_continente.to_csv(".\data\dormidas.csv",index=False)
+```
+
+
+## Nights stayed (Dormidas)
+
+0009808 - Nights (No.) in tourist accommodation establishments by Geographic localization (NUTS - 2013) and Type (tourist accommodation establishment); Monthly  
+
+Source: [INE](https://www.ine.pt/xportal/xmain?xpid=INE&xpgid=ine_indicadores&contecto=pi&indOcorrCod=0009808&selTab=tab0&xlang=pt)
+
+Filter used:  
+- Geopraphic location: Mainland Portugal  
+- Type of tourist establishment: All
+
+```{python}
+#| label: plot_nights_stayed
+#| echo: false
+plot_ine(dataframe = dormidas_continente, filename = 'dormidas', title = "Nights stayed")
+```
+
+```{python}
+#| label: table_nights_stayed
+#| echo: false
+tbl_dormidas = dormidas_continente[['month_year','valor']]\
+    .dropna()\
+.tail(12)\
+.assign(dormidas_AA = dormidas_continente['valor'].astype(int).shift(12),
+        dormidas_MA = dormidas_continente['valor'].astype(int).shift(1),
+        dormidas=dormidas_continente['valor'].astype(int),
+        dif_AA = lambda x: (x['dormidas'] - x['dormidas_AA']).astype(int),
+        dif_AA_pct = lambda x: ((x['dormidas'] - x['dormidas_AA'])/x['dormidas_AA'])*100,
+        dif_MA = lambda x: (x['dormidas'] - x['dormidas_MA']).astype(int),
+        dif_MA_pct = lambda x: ((x['dormidas'] - x['dormidas_MA'])/x['dormidas_MA'])*100)\
+.tail(6)\
+.dropna()\
+.assign(dormidas_AA = lambda x: x['dormidas_AA'].astype(int),
+dormidas_MA = lambda x: x['dormidas_MA'].astype(int))\
+.drop(columns=["valor"])
+tbl_dormidas\
+.style.format(precision=3, thousands=".", decimal=",")\
+.hide(axis="index")\
+.background_gradient(cmap="BuGn",subset=['dif_AA','dif_AA_pct'])\
+.format({"dif_AA":format_with_plus,"dif_MA":format_with_plus,"dif_AA_pct":format_with_percent,"dif_MA_pct":format_with_percent},precision=2)
+```
+
+```{python}
+#| echo: false
+#| label: percent_nights_stayed
+tbl_dormidas_format = tbl_dormidas\
+.assign(dif_AA = tbl_dormidas['dif_AA'].apply(format_with_plus),
+dif_MA = tbl_dormidas['dif_MA'].apply(format_with_plus),
+dif_AA_pct = tbl_dormidas['dif_AA_pct'].apply(format_with_percent),
+dif_MA_pct = tbl_dormidas['dif_MA_pct'].apply(format_with_percent))
+
+mes_dormidas = tbl_dormidas_format.iloc[-1].tolist()
+#tbl_dormidas, mes_dormidas = table_months(dormidas_continente)
+#table_months(hospedes_continente)
+```
+<br/>
+<p style="font-size: 18px;">
+The latest month (**`{python} mes_dormidas[0]`**) had **`{python} mes_dormidas[3]`** stays.  
+- That's **`{python} mes_dormidas[4]`** (or   **`{python} mes_dormidas[5]`**) compared to the same month last year: **`{python} mes_dormidas[1]`**  
+- and **`{python} mes_dormidas[6]`** (or   **`{python} mes_dormidas[7]`**) compared to the last calendar month: **`{python} mes_dormidas[2]`**
+</p>
+<br/><br/>
+
+## Guests (Hóspedes)
+0009812 - Guests (No.) in tourist accommodation establishments by Geographic localization (NUTS - 2013) and Type (tourist accommodation establishment); Monthly
+
+Source: [INE](https://www.ine.pt/xportal/xmain?xpid=INE&xpgid=ine_indicadores&contecto=pi&indOcorrCod=0009808&selTab=tab0&xlang=pt)
+
+Filter used:  
+- Geopraphic location: Mainland Portugal  
+- Type of tourist establishment: All
+  
+```{python}
+#| label: plot_guests
+#| echo: false
+plot_ine(dataframe = hospedes_continente, filename = 'hospedes', title = "Guests")
+```
+
+```{python}
+#| echo: false
+#| label: table_guests
+tbl_hospedes = hospedes_continente[['month_year','valor']]\
+    .dropna()\
+.tail(12)\
+.assign(hospedes_AA =hospedes_continente['valor'].astype(int).shift(12),
+        hospedes_MA = hospedes_continente['valor'].astype(int).shift(1),
+        hospedes=hospedes_continente['valor'].astype(int),
+        dif_AA = lambda x: (x['hospedes'] - x['hospedes_AA']).astype(int),
+        dif_AA_pct = lambda x: ((x['hospedes'] - x['hospedes_AA'])/x['hospedes_AA'])*100,
+        dif_MA = lambda x: (x['hospedes'] - x['hospedes_MA']).astype(int),
+        dif_MA_pct = lambda x: ((x['hospedes'] - x['hospedes_MA'])/x['hospedes_MA'])*100)\
+.tail(6)\
+.dropna()\
+.assign(hospedes_AA = lambda x: x['hospedes_AA'].astype(int),
+hospedes_MA = lambda x: x['hospedes_MA'].astype(int))\
+.drop(columns=["valor"])
+
+tbl_hospedes\
+.style.format(precision=3, thousands=".", decimal=",")\
+.hide(axis="index")\
+.background_gradient(cmap="BuGn",subset=['dif_AA','dif_AA_pct'])\
+.format({"dif_AA":format_with_plus,"dif_MA":format_with_plus,"dif_AA_pct":format_with_percent,"dif_MA_pct":format_with_percent},precision=2)
+
+```
+
+```{python}
+#| label: table_percent_guests
+#| echo: false
+#tbl_hospedes, mes_hospedes = table_months(hospedes_continente)
+#table_months(hospedes_continente)
+tbl_hospedes_format = tbl_hospedes\
+.assign(dif_AA = tbl_hospedes['dif_AA'].apply(format_with_plus),
+dif_MA = tbl_hospedes['dif_MA'].apply(format_with_plus),
+dif_AA_pct = tbl_hospedes['dif_AA_pct'].apply(format_with_percent),
+dif_MA_pct = tbl_hospedes['dif_MA_pct'].apply(format_with_percent))
+
+mes_hospedes = tbl_hospedes_format.iloc[-1].tolist()
+```
+<br/>
+<p style="font-size: 18px;">
+The latest month (**`{python} mes_hospedes[0]`**) had **`{python} mes_hospedes[3]`** guests.  
+- That's **`{python} mes_hospedes[4]`** (or   **`{python} mes_hospedes[5]`**) compared to the same month last year: **`{python} mes_hospedes[1]`**  
+- and **`{python} mes_hospedes[6]`** (or   **`{python} mes_hospedes[7]`**) compared to the last calendar month: **`{python} mes_hospedes[2]`**
+</p>
+
+
+<br/><br/>
+
+## Tourism Spending (Gasto de turistas estrangeiros)
+
+Exportações (crédito) da balança de serviços: viagens e turismo - valores mensais em milhões de euros
+
+Source: [Banco de Portugal](https://bpstat.bportugal.pt/serie/12516091)
+
+```{python}
+#| label: plot_spending
+#| echo: false
+plot_bp('gastos_turistas', 'gastos_turistas', 'Tourism Spending', dataframe = indicadoresBP)
+```
+
+
+```{python}
+#| echo: false
+#| label: table_spending
+tbl_gasto,tbl_gasto_format = tbl_indicators_bp(indicator = "gastos_turistas",dataframe= indicadoresBP)
+mes_gasto_turistas = tbl_gasto_format\
+    .assign(dif_AA = lambda x: round(x['valor_AA'],2),
+            dif_MA = lambda x: round(x['valor_MA'],2))\
+    .iloc[-1].tolist()
+tbl_gasto\
+    .assign(dif_AA = lambda x: round(x['valor_AA'],2),
+            dif_MA = lambda x: round(x['valor_MA'],2))\
+    .style.format(precision=2, thousands=".", decimal=",")\
+.hide(axis="index")\
+.background_gradient(cmap="BuGn",subset=['dif_AA','dif_AA_pct'])\
+.format({"dif_AA":format_with_plus,"dif_MA":format_with_plus,"dif_AA_pct":format_with_percent,"dif_MA_pct":format_with_percent},precision=2)
+```
+<br/>
+<p style="font-size: 18px;">
+Tourists spent **€`{python} mes_gasto_turistas[1]` millions** in the latest month (`{python} mes_gasto_turistas[2] + ' ' + str(mes_gasto_turistas[3])`).  
+- That's **€`{python} mes_gasto_turistas[6]` millions** (or   **`{python} mes_gasto_turistas[7]`**) compared to the same month last year: **€`{python} mes_gasto_turistas[4]` millions**  
+- and **€`{python} mes_gasto_turistas[8]` millions** (or   **`{python} mes_gasto_turistas[9]`**) compared to the last calendar month: **€`{python} mes_gasto_turistas[5]` millions**
+</p>
+<br/><br/>
+
+# Economic Indicators
+
+## Consumer Confidence Index - Confiança do Consumidor
+
+Confidence indicators belong to the set of short-term indicators that allow monitoring the evolution of the economic situation and anticipating the evolution of the main macroeconomic aggregates for Portugal.
+
+Indicador de confiança dos consumidores-Mensal-sre (vcs)
+
+Source: [Banco de Portugal](https://bpstat.bportugal.pt/serie/12099336)
+
+```{python}
+#| echo: false
+#| label: plot_confidence
+plot_bp('confianca_consumidor', 'confianca_consumidor', 'Consumer Confidence', dataframe = indicadoresBP)
+```
+
+```{python}
+#| echo: false
+#| label: table_confidence
+#a,mes_confianca = table_months_bp(indicadoresBP,'confianca_consumidor')
+tbl_confianca,tbl_confianca_format = tbl_indicators_bp(indicator = "confianca_consumidor",dataframe= indicadoresBP)
+mes_confianca = tbl_confianca_format\
+    .assign(dif_AA = lambda x: round(x['valor_AA'],2),
+            dif_MA = lambda x: round(x['valor_MA'],2))\
+    .iloc[-1].tolist()
+tbl_confianca\
+.assign(dif_AA = lambda x: round(x['valor_AA'],2),
+        dif_MA = lambda x: round(x['valor_MA'],2))\
+.style.format(precision=3, thousands=".", decimal=",")\
+.hide(axis="index")\
+.background_gradient(cmap="BuGn",subset=['dif_AA','dif_AA_pct'])\
+.format({"dif_AA":format_with_plus,"dif_MA":format_with_plus,"dif_AA_pct":format_with_percent,"dif_MA_pct":format_with_percent},precision=2)
+```
+<br/>
+<p style="font-size: 18px;">
+The Consumer Confidence Index was **`{python} mes_confianca[1]`** in the latest month (`{python} mes_confianca[2] + ' ' + str(mes_confianca[3])`).  
+- That's **`{python} mes_confianca[6]`** (or   **`{python} mes_confianca[7]`**) compared to the same month last year: **`{python} mes_confianca[4]`**  
+- and **`{python} mes_confianca[8]`** (or   **`{python} mes_confianca[9]`**) compared to the last calendar month: **`{python} mes_confianca[5]`**
+</p>
+<br/><br/>
+
+## Economic Sentiment Indicator (Sentimento Economico)
+
+The Economic Sentiment Indicator (ESI) is a composite indicator produced by the European Commission's Directorate-General for Economic and Financial Affairs (DG ECFIN). Its objective is to monitor GDP growth at the level of Member States, the EU and the euro area.
+
+Source: [Banco de Portugal](https://bpstat.bportugal.pt/serie/12559742) and [European Comission](https://data.europa.eu/data/datasets/c04buuz6wxiqgjkhpwlug?locale=pt)
+
+```{python}
+#| echo: false
+#| label: plot_sentiment
+plot_bp('sentimento_economico', 'sentimento_economico', 'Economic Sentiment', dataframe = indicadoresBP)
+```
+
+```{python}
+#| echo: false
+#| label: table_sentiment
+#a,mes_sentimento = table_months_bp(indicadoresBP,'sentimento_economico')
+tbl_sentimento,tbl_sentimento_format = tbl_indicators_bp(indicator = "sentimento_economico",dataframe= indicadoresBP)
+mes_sentimento = tbl_sentimento_format\
+    .assign(dif_AA = lambda x: round(x['valor_AA'],2),
+            dif_MA = lambda x: round(x['valor_MA'],2))\
+    .iloc[-1].tolist()
+tbl_sentimento\
+.assign(dif_AA = lambda x: round(x['valor_AA'],2),
+        dif_MA = lambda x: round(x['valor_MA'],2))\
+.style.format(precision=2, thousands=".", decimal=",")\
+.hide(axis="index")\
+.background_gradient(cmap="BuGn",subset=['dif_AA','dif_AA_pct'])\
+.format({"dif_AA":format_with_plus,"dif_MA":format_with_plus,"dif_AA_pct":format_with_percent,"dif_MA_pct":format_with_percent},precision=2)
+```
+<br/>
+<p style="font-size: 18px;">
+The Economic Sentiment Index was **`{python} mes_sentimento[1]`** in the latest month (`{python} mes_sentimento[2] + ' ' + str(mes_sentimento[3])`).  
+- That's **`{python} mes_sentimento[6]`** (or   **`{python} mes_sentimento[7]`**) compared to the same month last year: **`{python} mes_sentimento[4]`**  
+- and **`{python} mes_sentimento[8]`** (or   **`{python} mes_sentimento[9]`**) compared to the last calendar month: **`{python} mes_sentimento[5]`**
+</p>
+
+<br/><br/>
+
+## Unemployment (Desemprego 16 a 74 anos)
+
+Taxa de desemprego 16 a 74 anos-Estimativas mensais (vcs)
+Monthly Unemployment Rate (%)
+
+Source: [Banco de Portugal](https://bpstat.bportugal.pt/serie/5739364)
+
+```{python}
+#| echo: false
+#| label: plot_unempolyment
+plot_bp('desemprego', 'desemprego', 'Unemployment Rate (16-74)', dataframe = indicadoresBP)
+```
+
+```{python}
+#| echo: false
+#| label: table_unempolyment
+#a,mes_desemprego = table_months_bp(indicadoresBP,'desemprego')
+tbl_desemprego,tbl_desemprego_format = tbl_indicators_bp(indicator = "desemprego",dataframe= indicadoresBP)
+mes_desemprego = tbl_desemprego_format\
+    .assign(dif_AA = lambda x: round(x['valor_AA'],2),
+            dif_MA = lambda x: round(x['valor_MA'],2))\
+    .iloc[-1].tolist()
+tbl_desemprego\
+.assign(dif_AA = lambda x: round(x['valor_AA'],2),
+        dif_MA = lambda x: round(x['valor_MA'],2))\
+.style.format(precision=2, thousands=".", decimal=",")\
+.hide(axis="index")\
+.background_gradient(cmap="BuGn",subset=['dif_AA','dif_AA_pct'])\
+.format({"dif_AA":format_with_plus,"dif_MA":format_with_plus,"dif_AA_pct":format_with_percent,"dif_MA_pct":format_with_percent},precision=2)
+```
+<br/>
+<p style="font-size: 18px;">
+The Unemployment rate was **`{python} mes_desemprego[1]`%** in the latest month (`{python} mes_desemprego[2] + ' ' + str(mes_desemprego[3])`).  
+- That's **`{python} mes_desemprego[6]`p.p**  compared to the same month last year: **`{python} mes_desemprego[4]`%**  
+- and **`{python} mes_desemprego[8]`p.p** compared to the last calendar month: **`{python} mes_desemprego[5]`%**
+</p>
+
+<br/><br/>
+
+## Inflation on Food (IPC sobre bens alimentares)
+IPC (2012=100)-produtos alimentares e bebidas não alcoólicas
+
+Source: [Banco de Portugal](https://bpstat.bportugal.pt/serie/12559546)
+```{python}
+#| echo: false
+#| label: plot_inflation
+plot_bp('ipc_alimentos', 'ipc_alimentos', 'Inflation on Food', dataframe = indicadoresBP)
+```
+
+```{python}
+#| echo: false
+#| label: table_inflation
+#a,mes_desemprego = table_months_bp(indicadoresBP,'desemprego')
+tbl_ipc,tbl_ipc_format = tbl_indicators_bp(indicator = "ipc_alimentos",dataframe= indicadoresBP)
+mes_ipc = tbl_ipc_format\
+    .assign(dif_AA = lambda x: round(x['valor_AA'],2),
+            dif_MA = lambda x: round(x['valor_MA'],2))\
+    .iloc[-1].tolist()
+tbl_ipc\
+.assign(dif_AA = lambda x: round(x['valor_AA'],2),
+        dif_MA = lambda x: round(x['valor_MA'],2))\
+.style.format(precision=2, thousands=".", decimal=",")\
+.hide(axis="index")\
+.background_gradient(cmap="BuGn",subset=['dif_AA','dif_AA_pct'])\
+.format({"dif_AA":format_with_plus,"dif_MA":format_with_plus,"dif_AA_pct":format_with_percent,"dif_MA_pct":format_with_percent},precision=2)
+```
+<br/>
+<p style="font-size: 18px;">
+The Inflation on Food was **`{python} mes_ipc[1]`** in the latest month (`{python} mes_ipc[2] + ' ' + str(mes_ipc[3])`).  
+- That's **`{python} mes_ipc[7]`** compared to the same month last year: **`{python} mes_ipc[4]`**  
+- and **`{python} mes_ipc[9]`** compared to the last calendar month: **`{python} mes_ipc[5]`**
+</p>
+
+
+<br/><br/>
+
+## Harmonized Inflation on Food (Inflação Harmonizada - IHPC sobre bens alimentares)
+IHPC (2015=100)-Bens alimentares-M
+
+Source: [Banco de Portugal](https://bpstat.bportugal.pt/serie/12559584)
+
+```{python}
+#| echo: false
+#| label: plot_harmonized_inflation
+plot_bp('ihpc_alimentos', 'ihpc_alimentos', 'Harmonized Inflation on Food', dataframe = indicadoresBP)
+```
+```{python}
+#| echo: false
+#| label: table_harmonized_inflation
+#a,mes_desemprego = table_months_bp(indicadoresBP,'desemprego')
+tbl_ihpc,tbl_ihpc_format = tbl_indicators_bp(indicator = "ihpc_alimentos",dataframe= indicadoresBP)
+mes_ihpc = tbl_ihpc_format\
+    .assign(dif_AA = lambda x: round(x['valor_AA'],2),
+            dif_MA = lambda x: round(x['valor_MA'],2))\
+    .iloc[-1].tolist()
+tbl_ihpc\
+.assign(dif_AA = lambda x: round(x['valor_AA'],2),
+        dif_MA = lambda x: round(x['valor_MA'],2))\
+.style.format(precision=2, thousands=".", decimal=",")\
+.hide(axis="index")\
+.background_gradient(cmap="BuGn",subset=['dif_AA','dif_AA_pct'])\
+.format({"dif_AA":format_with_plus,"dif_MA":format_with_plus,"dif_AA_pct":format_with_percent,"dif_MA_pct":format_with_percent},precision=2)
+```
+<br/>
+<p style="font-size: 18px;">
+The Harmonized Index of Inflation on Food was **`{python} mes_ihpc[1]`** in the latest month (`{python} mes_ihpc[2] + ' ' + str(mes_ihpc[3])`).  
+- That's **`{python} mes_ihpc[7]`** compared to the same month last year: **`{python} mes_ihpc[4]`**  
+- and **`{python} mes_ihpc[9]`** compared to the last calendar month: **`{python} mes_ihpc[5]`**
+</p>
+
+<br/><br/>
+
+## Food Retail Index (Índice Retalho alimentos)
+
+Índice Volume negócios a retalho - Alimentares estab especializados-M (vcsc)
+Food, beverage and tobacco products, in specialized establishments
+
+Source: [Banco de Portugal](https://bpstat.bportugal.pt/serie/12559818)
+<br/>
+
+```{python}
+#| echo: false
+#| label: plot_retail
+plot_bp('volume_retalho_alimentar', 'volume_retalho_alimentar', '', dataframe = indicadoresBP)
+```
+
+
+```{python}
+#| echo: false
+#| label: table_retail
+#a,mes_retalho = table_months_bp(indicadoresBP,'volume_retalho_alimentar')
+tbl_retalho,tbl_retalho_format = tbl_indicators_bp(indicator = "volume_retalho_alimentar",dataframe= indicadoresBP)
+mes_retalho = tbl_retalho_format\
+    .assign(dif_AA = lambda x: round(x['valor_AA'],2),
+            dif_MA = lambda x: round(x['valor_MA'],2))\
+    .iloc[-1].tolist()
+tbl_retalho\
+.assign(dif_AA = lambda x: round(x['valor_AA'],2),
+        dif_MA = lambda x: round(x['valor_MA'],2))\
+.style.format(precision=2, thousands=".", decimal=",")\
+.hide(axis="index")\
+.background_gradient(cmap="BuGn",subset=['dif_AA','dif_AA_pct'])\
+.format({"dif_AA":format_with_plus,"dif_MA":format_with_plus,"dif_AA_pct":format_with_percent,"dif_MA_pct":format_with_percent},precision=2)
+```
+
+<br/>
+
+<p style="font-size: 18px;">
+The Retail Index was **`{python} mes_retalho[1]`** in the latest month (`{python} mes_retalho[2] + ' ' + str(mes_retalho[3])`).  
+- That's **`{python} mes_retalho[6]`** (or   **`{python} mes_retalho[7]`**) compared to the same month last year: **`{python} mes_retalho[4]`**  
+- and **`{python} mes_retalho[8]`** (or   **`{python} mes_retalho[9]`**) compared to the last calendar month: **`{python} mes_retalho[5]`**
+</p>
+
+
+<br/>
+
+# Summary - Results {#sec-results}
+```{python}
+#| lst-label: lst-results
+#| lst-cap: Results
+#| echo: false
+#| label: summary
+
+from IPython.display import display, Markdown
+summary =pd.concat([
+    extract_difs(tbl_dormidas,"Stays in Tourism Establishments"),
+    extract_difs(tbl_hospedes,"Guests in Tourism Establishments"),
+    extract_difs(tbl_gasto,"Tourism Spending"),
+    extract_difs(tbl_confianca,"Consumer Confidence Index"),
+    extract_difs(tbl_sentimento,"Economic Sentiment Index"),
+    extract_difs(tbl_desemprego,"Unemployment Rate"),
+    extract_difs(tbl_ipc,"Inflation on Food"),
+    extract_difs(tbl_ihpc,"Harmonized Inflation on Food"),
+    extract_difs(tbl_retalho,"Retail Index")
+
+    ]
+    ).reset_index(drop=True)
+#summary.style.hide(axis='index')
+
+
+final_summary = summary.reindex(summary['dif_AA_pct'].abs().sort_values(ascending=False).index).query("abs(dif_AA_pct) > 5")
+for index, row in final_summary.iterrows():
+    if "Index" in row['indicator'] or "Food" in row['indicator']:
+        if row['dif_AA_pct'] < 0:
+            display(Markdown(f"<p style='font-size: 18px;'>The **{row['indicator']}** went down **{row['dif_AA_pct']:.2f}%** compared to last year 📉</p>"))
+        else:
+            display(Markdown(f"<p style='font-size: 18px;'>The **{row['indicator']}** went up **{row['dif_AA_pct']:.2f}%** compared to last year 📈</p>"))
+    elif "Guests" in row['indicator'] or "Stays" in row['indicator']:
+        if row['dif_AA_pct'] < 0:
+            display(Markdown(f"<p style='font-size: 18px;'>The number of **{row['indicator']}** went down **{row['dif_AA_pct']:.2f}%** compared to last year 📉</p>"))
+        else:
+            display(Markdown(f"<p style='font-size: 18px;'>The number of **{row['indicator']}** went up **{row['dif_AA_pct']:.2f}%** compared to last year 📈</p>"))
+    elif "Spending" in row['indicator']:
+        if row['dif_AA_pct'] < 0:
+            display(Markdown(f"<p style='font-size: 18px;'>**{row['indicator']}** went down **{row['dif_AA_pct']:.2f}%** compared to last year 📉</p>"))
+        else:
+            display(Markdown(f"<p style='font-size: 18px;'>**{row['indicator']}** went up **{row['dif_AA_pct']:.2f}%** compared to last year 📈</p>"))
+    elif "Unemployment" in row['indicator']:
+        if row['dif_AA_pct'] < 0:
+            display(Markdown(f"<p style='font-size: 18px;'><b>{row['indicator']}</b> went down **{row['dif_AA_pct']:.2f}p.p.** compared to last year 📉</p>"))
+        else:
+            display(Markdown(f"<p style='font-size: 18px;'>**{row['indicator']}** went up **{row['dif_AA_pct']:.2f}p.p** compared to last year 📈</p>"))
+```
+The most important results this month were:
+
+
+<br/>
+That's the end of this month's report. Thanks for following, see you next month!
