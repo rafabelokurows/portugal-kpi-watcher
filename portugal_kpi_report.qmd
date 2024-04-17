@@ -246,7 +246,7 @@ def tbl_indicators_bp(indicator,dataframe):
     teste=dataframe.reset_index('date')
 
     teste = teste[['date',indicator]]\
-    .assign(month=pd.to_datetime(teste.date).dt.month_name(locale="pt_BR"),
+    .assign(month=pd.to_datetime(teste.date).dt.month_name(),
     year=pd.to_datetime(teste.date).dt.year)\
     .dropna(subset=[indicator])\
 
