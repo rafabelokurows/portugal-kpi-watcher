@@ -426,7 +426,7 @@ Filter used:
 ```{python}
 #| label: plot_guests
 #| echo: false
-plot_ine(dataframe = hospedes_continente, filename = 'hospedes', title = "Guests")
+plot_ine2(dataframe = hospedes_continente, filename = 'hospedes', title = "Guests")
 ```
 
 ```{python}
@@ -497,12 +497,12 @@ plot_bp('gastos_turistas', 'gastos_turistas', 'Tourism Spending', dataframe = in
 #| label: table_spending
 tbl_gasto,tbl_gasto_format = tbl_indicators_bp(indicator = "gastos_turistas",dataframe= indicadoresBP)
 mes_gasto_turistas = tbl_gasto_format\
-    .assign(dif_AA = lambda x: round(x['valor_AA'],2),
-            dif_MA = lambda x: round(x['valor_MA'],2))\
+    .assign(dif_AA = lambda x: round(x['dif_AA'],2),
+        dif_MA = lambda x: round(x['dif_MA'],2))\
     .iloc[-1].tolist()
 tbl_gasto\
-    .assign(dif_AA = lambda x: round(x['valor_AA'],2),
-            dif_MA = lambda x: round(x['valor_MA'],2))\
+    .assign(dif_AA = lambda x: round(x['dif_AA'],2),
+            dif_MA = lambda x: round(x['dif_MA'],2))\
     .style.format(precision=2, thousands=".", decimal=",")\
 .hide(axis="index")\
 .background_gradient(cmap="BuGn",subset=['dif_AA','dif_AA_pct'])\
@@ -538,12 +538,12 @@ plot_bp('confianca_consumidor', 'confianca_consumidor', 'Consumer Confidence', d
 #a,mes_confianca = table_months_bp(indicadoresBP,'confianca_consumidor')
 tbl_confianca,tbl_confianca_format = tbl_indicators_bp(indicator = "confianca_consumidor",dataframe= indicadoresBP)
 mes_confianca = tbl_confianca_format\
-    .assign(dif_AA = lambda x: round(x['valor_AA'],2),
-            dif_MA = lambda x: round(x['valor_MA'],2))\
+    .assign(dif_AA = lambda x: round(x['dif_AA'],2),
+        dif_MA = lambda x: round(x['dif_MA'],2))\
     .iloc[-1].tolist()
 tbl_confianca\
-.assign(dif_AA = lambda x: round(x['valor_AA'],2),
-        dif_MA = lambda x: round(x['valor_MA'],2))\
+.assign(dif_AA = lambda x: round(x['dif_AA'],2),
+        dif_MA = lambda x: round(x['dif_MA'],2))\
 .style.format(precision=3, thousands=".", decimal=",")\
 .hide(axis="index")\
 .background_gradient(cmap="BuGn",subset=['dif_AA','dif_AA_pct'])\
@@ -575,12 +575,12 @@ plot_bp('sentimento_economico', 'sentimento_economico', 'Economic Sentiment', da
 #a,mes_sentimento = table_months_bp(indicadoresBP,'sentimento_economico')
 tbl_sentimento,tbl_sentimento_format = tbl_indicators_bp(indicator = "sentimento_economico",dataframe= indicadoresBP)
 mes_sentimento = tbl_sentimento_format\
-    .assign(dif_AA = lambda x: round(x['valor_AA'],2),
-            dif_MA = lambda x: round(x['valor_MA'],2))\
+    .assign(dif_AA = lambda x: round(x['dif_AA'],2),
+        dif_MA = lambda x: round(x['dif_MA'],2))\
     .iloc[-1].tolist()
 tbl_sentimento\
-.assign(dif_AA = lambda x: round(x['valor_AA'],2),
-        dif_MA = lambda x: round(x['valor_MA'],2))\
+.assign(dif_AA = lambda x: round(x['dif_AA'],2),
+        dif_MA = lambda x: round(x['dif_MA'],2))\
 .style.format(precision=2, thousands=".", decimal=",")\
 .hide(axis="index")\
 .background_gradient(cmap="BuGn",subset=['dif_AA','dif_AA_pct'])\
@@ -614,12 +614,12 @@ plot_bp('desemprego', 'desemprego', 'Unemployment Rate (16-74)', dataframe = ind
 #a,mes_desemprego = table_months_bp(indicadoresBP,'desemprego')
 tbl_desemprego,tbl_desemprego_format = tbl_indicators_bp(indicator = "desemprego",dataframe= indicadoresBP)
 mes_desemprego = tbl_desemprego_format\
-    .assign(dif_AA = lambda x: round(x['valor_AA'],2),
-            dif_MA = lambda x: round(x['valor_MA'],2))\
+    .assign(dif_AA = lambda x: round(x['dif_AA'],2),
+        dif_MA = lambda x: round(x['dif_MA'],2))\
     .iloc[-1].tolist()
 tbl_desemprego\
-.assign(dif_AA = lambda x: round(x['valor_AA'],2),
-        dif_MA = lambda x: round(x['valor_MA'],2))\
+.assign(dif_AA = lambda x: round(x['dif_AA'],2),
+        dif_MA = lambda x: round(x['dif_MA'],2))\
 .style.format(precision=2, thousands=".", decimal=",")\
 .hide(axis="index")\
 .background_gradient(cmap="BuGn",subset=['dif_AA','dif_AA_pct'])\
@@ -650,12 +650,12 @@ plot_bp('ipc_alimentos', 'ipc_alimentos', 'Inflation on Food', dataframe = indic
 #a,mes_desemprego = table_months_bp(indicadoresBP,'desemprego')
 tbl_ipc,tbl_ipc_format = tbl_indicators_bp(indicator = "ipc_alimentos",dataframe= indicadoresBP)
 mes_ipc = tbl_ipc_format\
-    .assign(dif_AA = lambda x: round(x['valor_AA'],2),
-            dif_MA = lambda x: round(x['valor_MA'],2))\
+    .assign(dif_AA = lambda x: round(x['dif_AA'],2),
+        dif_MA = lambda x: round(x['dif_MA'],2))\
     .iloc[-1].tolist()
 tbl_ipc\
-.assign(dif_AA = lambda x: round(x['valor_AA'],2),
-        dif_MA = lambda x: round(x['valor_MA'],2))\
+.assign(dif_AA = lambda x: round(x['dif_AA'],2),
+        dif_MA = lambda x: round(x['dif_MA'],2))\
 .style.format(precision=2, thousands=".", decimal=",")\
 .hide(axis="index")\
 .background_gradient(cmap="BuGn",subset=['dif_AA','dif_AA_pct'])\
@@ -687,12 +687,12 @@ plot_bp('ihpc_alimentos', 'ihpc_alimentos', 'Harmonized Inflation on Food', data
 #a,mes_desemprego = table_months_bp(indicadoresBP,'desemprego')
 tbl_ihpc,tbl_ihpc_format = tbl_indicators_bp(indicator = "ihpc_alimentos",dataframe= indicadoresBP)
 mes_ihpc = tbl_ihpc_format\
-    .assign(dif_AA = lambda x: round(x['valor_AA'],2),
-            dif_MA = lambda x: round(x['valor_MA'],2))\
+    .assign(dif_AA = lambda x: round(x['dif_AA'],2),
+        dif_MA = lambda x: round(x['dif_MA'],2))\
     .iloc[-1].tolist()
 tbl_ihpc\
-.assign(dif_AA = lambda x: round(x['valor_AA'],2),
-        dif_MA = lambda x: round(x['valor_MA'],2))\
+.assign(dif_AA = lambda x: round(x['dif_AA'],2),
+        dif_MA = lambda x: round(x['dif_MA'],2))\
 .style.format(precision=2, thousands=".", decimal=",")\
 .hide(axis="index")\
 .background_gradient(cmap="BuGn",subset=['dif_AA','dif_AA_pct'])\
@@ -728,12 +728,12 @@ plot_bp('volume_retalho_alimentar', 'volume_retalho_alimentar', '', dataframe = 
 #a,mes_retalho = table_months_bp(indicadoresBP,'volume_retalho_alimentar')
 tbl_retalho,tbl_retalho_format = tbl_indicators_bp(indicator = "volume_retalho_alimentar",dataframe= indicadoresBP)
 mes_retalho = tbl_retalho_format\
-    .assign(dif_AA = lambda x: round(x['valor_AA'],2),
-            dif_MA = lambda x: round(x['valor_MA'],2))\
+    .assign(dif_AA = lambda x: round(x['dif_AA'],2),
+        dif_MA = lambda x: round(x['dif_MA'],2))\
     .iloc[-1].tolist()
 tbl_retalho\
-.assign(dif_AA = lambda x: round(x['valor_AA'],2),
-        dif_MA = lambda x: round(x['valor_MA'],2))\
+.assign(dif_AA = lambda x: round(x['dif_AA'],2),
+        dif_MA = lambda x: round(x['dif_MA'],2))\
 .style.format(precision=2, thousands=".", decimal=",")\
 .hide(axis="index")\
 .background_gradient(cmap="BuGn",subset=['dif_AA','dif_AA_pct'])\
@@ -752,6 +752,8 @@ The Retail Index was **`{python} mes_retalho[1]`** in the latest month (`{python
 <br/>
 
 # Summary - Results {#sec-results}
+
+The most important results this month were:
 ```{python}
 #| lst-label: lst-results
 #| lst-cap: Results
@@ -798,7 +800,7 @@ for index, row in final_summary.iterrows():
         else:
             display(Markdown(f"<p style='font-size: 18px;'>**{row['indicator']}** went up **{row['dif_AA_pct']:.2f}p.p** compared to last year 📈</p>"))
 ```
-The most important results this month were:
+
 
 
 <br/>
