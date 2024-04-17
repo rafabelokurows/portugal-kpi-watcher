@@ -88,7 +88,7 @@ from datetime import datetime, timedelta
 date= datetime.now().replace(day=1) - timedelta(days=1)
 fim_ultimo_mes = date.strftime("%Y-%m-%d")
 
-locale.setlocale(locale.LC_TIME, "pt_pt")
+locale.setlocale(locale.LC_TIME, "pt_pt.utf8")
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 month_mapping = {
     "Janeiro": "01",
