@@ -219,6 +219,25 @@ def plot_ine(dataframe, filename, title):
     fig.savefig(filepath)
     #print(f"Also saving plot at {filepath}")
 
+def plot_ine2(dataframe, filename, title):
+    fig = hospedes_continente \
+        .assign(month_year = hospedes_continente['month_year'].str.replace(' de ', ' '))\
+        .assign(date = hospedes_continente['month_year'].apply(lambda x: pd.to_datetime(convert_to_datetime(x))),
+                valor=dataframe['valor'].astype(int),
+                ma_3=dataframe["valor"].rolling(window=3).mean().shift(-1),
+                ma_6=dataframe["valor"].rolling(window=6).mean().shift(-2)) \
+        .drop(columns="geocod")\
+        .set_index('date') \
+        .plot(figsize=(9, 5), title=title) \
+        .get_figure()
+
+    plt.tight_layout()
+    plt.xlabel('')
+    plt.legend(['Monthly','Moving Average 3mo','Moving Average 6mo'])
+    filepath = f'.\plots\{filename}.png'
+    fig.savefig(filepath)
+    #print(f"Also saving plot at {filepath}")
+
 def plot_bp(indicator, filename, title, dataframe = indicadoresBP):
     fig = dataframe[[indicator]]\
         .plot(figsize=(9, 5),title= title)\
@@ -285,6 +304,34 @@ def extract_difs(dataframe,label):
 These are the KPIs we're keeping track of:
 
 ```{python}
+date_format = '%B %Y'  # Full month name followed by year
+
+hospedes_continente \
+        .assign(month_year = hospedes_continente['month_year'].str.replace(' de ', ' '),
+            date=hospedes_continente['month_year'].apply(lambda x: pd.to_datetime(x, format=date_format, errors='coerce')),
+                valor=hospedes_continente['valor'].astype(int),
+                ma_3=hospedes_continente["valor"].rolling(window=3).mean().shift(-1),
+                ma_6=hospedes_continente["valor"].rolling(window=6).mean().shift(-2)) \
+        .drop(columns="geocod")\
+        .set_index('date') #\        .plot(figsize=(9, 5), title='teste')
+```
+
+
+```{python}
+def convert_to_datetime(date_str):
+    month_str, year_str = date_str.split(" de ")
+    month_number = month_mapping[month_str]
+    return datetime.strptime(month_number + "/01/" + year_str, "%m/%d/%Y")
+
+    # ,
+    #         date=hospedes_continente['month_year'].apply(lambda x: pd.to_datetime(convert_to_datetime(), errors='coerce'))
+
+hospedes_continente \
+        .assign(month_year = hospedes_continente['month_year'].str.replace(' de ', ' '))\
+        .assign(teste = hospedes_continente['month_year'].apply(lambda x: pd.to_datetime(convert_to_datetime(x))))
+
+```
+```{python}
 #| label: table_indicators
 #| echo: false
 #indicador = ["0009812","0009808","confianca_consumidor"]
@@ -344,7 +391,7 @@ Filter used:
 ```{python}
 #| label: plot_nights_stayed
 #| echo: false
-plot_ine(dataframe = dormidas_continente, filename = 'dormidas', title = "Nights stayed")
+plot_ine2(dataframe = dormidas_continente, filename = 'dormidas', title = "Nights stayed")
 ```
 
 ```{python}
