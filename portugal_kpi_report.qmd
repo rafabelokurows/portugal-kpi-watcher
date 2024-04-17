@@ -9,7 +9,7 @@ format:
         theme: 
             light: flatly
             dark: darkly
-        fontsize: 1em
+        fontsize: 1.1em
         grid:
             body-width: 1000px
         smooth-scroll: true
@@ -87,7 +87,7 @@ import locale
 from datetime import datetime, timedelta
 date= datetime.now().replace(day=1) - timedelta(days=1)
 fim_ultimo_mes = date.strftime("%Y-%m-%d")
-
+pd.options.display.float_format = '{:.2%}'.format
 #locale.setlocale(locale.LC_TIME, "pt_pt.utf8")
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 month_mapping = {
@@ -252,8 +252,8 @@ def plot_bp(indicator, filename, title, dataframe = indicadoresBP):
 
 def format_with_plus(val):
     if val > 0:
-        return f'+{val}'
-    return val
+        return f'+{val:.2f}'
+    return f'{val:.2f}'
 
 def format_with_percent(val):
     if val > 0:
@@ -781,24 +781,24 @@ final_summary = summary.reindex(summary['dif_AA_pct'].abs().sort_values(ascendin
 for index, row in final_summary.iterrows():
     if "Index" in row['indicator'] or "Food" in row['indicator']:
         if row['dif_AA_pct'] < 0:
-            display(Markdown(f"<p style='font-size: 18px;'>The **{row['indicator']}** went down **{row['dif_AA_pct']:.2f}%** compared to last year 📉</p>"))
+            display(Markdown(f"<p style='font-size: 18px;'>The **{row['indicator']}** went down **{row['dif_AA_pct']:.2f}%** compared to the same month last year 📉</p>"))
         else:
-            display(Markdown(f"<p style='font-size: 18px;'>The **{row['indicator']}** went up **{row['dif_AA_pct']:.2f}%** compared to last year 📈</p>"))
+            display(Markdown(f"<p style='font-size: 18px;'>The **{row['indicator']}** went up **{row['dif_AA_pct']:.2f}%** compared to the same month last year 📈</p>"))
     elif "Guests" in row['indicator'] or "Stays" in row['indicator']:
         if row['dif_AA_pct'] < 0:
-            display(Markdown(f"<p style='font-size: 18px;'>The number of **{row['indicator']}** went down **{row['dif_AA_pct']:.2f}%** compared to last year 📉</p>"))
+            display(Markdown(f"<p style='font-size: 18px;'>The number of **{row['indicator']}** went down **{row['dif_AA_pct']:.2f}%** compared to the same month last year 📉</p>"))
         else:
-            display(Markdown(f"<p style='font-size: 18px;'>The number of **{row['indicator']}** went up **{row['dif_AA_pct']:.2f}%** compared to last year 📈</p>"))
+            display(Markdown(f"<p style='font-size: 18px;'>The number of **{row['indicator']}** went up **{row['dif_AA_pct']:.2f}%** compared to the same month last year 📈</p>"))
     elif "Spending" in row['indicator']:
         if row['dif_AA_pct'] < 0:
-            display(Markdown(f"<p style='font-size: 18px;'>**{row['indicator']}** went down **{row['dif_AA_pct']:.2f}%** compared to last year 📉</p>"))
+            display(Markdown(f"<p style='font-size: 18px;'>**{row['indicator']}** went down **{row['dif_AA_pct']:.2f}%** compared to the same month last year 📉</p>"))
         else:
-            display(Markdown(f"<p style='font-size: 18px;'>**{row['indicator']}** went up **{row['dif_AA_pct']:.2f}%** compared to last year 📈</p>"))
+            display(Markdown(f"<p style='font-size: 18px;'>**{row['indicator']}** went up **{row['dif_AA_pct']:.2f}%** compared to the same month last year 📈</p>"))
     elif "Unemployment" in row['indicator']:
         if row['dif_AA_pct'] < 0:
-            display(Markdown(f"<p style='font-size: 18px;'><b>{row['indicator']}</b> went down **{row['dif_AA_pct']:.2f}p.p.** compared to last year 📉</p>"))
+            display(Markdown(f"<p style='font-size: 18px;'><b>{row['indicator']}</b> went down **{row['dif_AA_pct']:.2f}p.p.** compared to the same month last year 📉</p>"))
         else:
-            display(Markdown(f"<p style='font-size: 18px;'>**{row['indicator']}** went up **{row['dif_AA_pct']:.2f}p.p** compared to last year 📈</p>"))
+            display(Markdown(f"<p style='font-size: 18px;'>**{row['indicator']}** went up **{row['dif_AA_pct']:.2f}p.p** compared to the same month last year 📈</p>"))
 ```
 
 
