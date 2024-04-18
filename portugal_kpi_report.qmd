@@ -330,12 +330,18 @@ Caveats:
 
 # Tourism
 
+Here we obtain the latest live data from INE, the Portuguese Bureau of Statistics and Banco de Portugal, Portugal's Federal Bank.
+
+Filters used:  
+- Geopraphic location: tourists for Mainland Portugal  
+- Type of tourist establishment: All
 
 ```{python}
-#| label: obtaining_data_INE
 #| echo: false
 #| warning: false
 #| error: false
+#| label: obtaining_data_INE
+#| output: false
 indicador = ["0009812","0009808"]
 var = ["hospedes_continente","dormidas_continente"]
 indicadores_ine = pd.DataFrame({'indicador': indicador,  
@@ -356,11 +362,9 @@ dormidas_continente.to_csv(".\data\dormidas.csv",index=False)
 
 0009808 - Nights (No.) in tourist accommodation establishments by Geographic localization (NUTS - 2013) and Type (tourist accommodation establishment); Monthly  
 
+
 Source: [INE](https://www.ine.pt/xportal/xmain?xpid=INE&xpgid=ine_indicadores&contecto=pi&indOcorrCod=0009808&selTab=tab0&xlang=pt)
 
-Filter used:  
-- Geopraphic location: Mainland Portugal  
-- Type of tourist establishment: All
 
 ```{python}
 #| label: plot_nights_stayed
@@ -419,9 +423,7 @@ The latest month (**`{python} mes_dormidas[0]`**) had **`{python} mes_dormidas[3
 
 Source: [INE](https://www.ine.pt/xportal/xmain?xpid=INE&xpgid=ine_indicadores&contecto=pi&indOcorrCod=0009808&selTab=tab0&xlang=pt)
 
-Filter used:  
-- Geopraphic location: Mainland Portugal  
-- Type of tourist establishment: All
+
   
 ```{python}
 #| label: plot_guests
@@ -800,7 +802,6 @@ for index, row in final_summary.iterrows():
         else:
             display(Markdown(f"<p style='font-size: 18px;'>**{row['indicator']}** went up **{row['dif_AA_pct']:.2f}p.p** compared to the same month last year 📈</p>"))
 ```
-
 
 
 <br/>
