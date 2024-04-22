@@ -1,5 +1,7 @@
 # Portugal KPI Report
 
+![image](https://github.com/rafabelokurows/portugal-kpi-watcher/assets/55976107/c3028920-a0d0-482c-be7f-a025d0b5e85d)
+
 ## Goal
 This project intends to generate automatically a modern-looking report of changes in Portuguese Tourism and Economy Indicators, so that stakeholders can get a quick overview of latest trends.
 
